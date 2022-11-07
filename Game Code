@@ -1,0 +1,160 @@
+//Variable Declarations
+        private final int BOARD_Y = 380;          //Set board dimensions to 380 units (x and y) as it seemed the most ideal size given some experimentation
+        private final int BOARD_X = 380;
+        private final int DOTSIZE = 10;          //This is the size of each dot on the board. 10 makes the dots easy to see for the user. Note that the snake can only move at increments of 10 and the apples can only spawn at coordinates divisible by 10 to make the game easier to play and avoid the user missing apples by a few unnoticeable pixels
+        private final int TOTALDOTS = (BOARD_Y*BOARD_X)/DOTSIZE;          //Total amount of dots on the board. Area of the board divided by size of each dot
+        private final int DELAY_SPEED = 60;          //This is used for the timer which loops code every [DELAY_SPEED] milliseconds. A loop every 60ms seems ideal... fast but not too fast
+
+        private int snakeLength = 3;          //Snake length begins at three
+        private int userScore;
+        
+        private int appleX;          //Apple coordinates
+        private int appleY;
+        private final int x[] = new int[TOTALDOTS];          //Snake coordinates. # of indexes is equal to number of total dots on the board. This is overkill, as you only need 38 in each array (only 38 dots fit on x and y axes)
+        private final int y[] = new int[TOTALDOTS];
+
+        private boolean moveUp;          //Directional booleans
+        private boolean moveDown;
+        private boolean moveLeft;
+        private boolean moveRight;
+        private boolean actionDelay;          //This boolean controls the user from spamming input and making the snake go backwards through itself (credit to Mr. J-F for the idea). It is set to true once the timer has ran through its loop, allowing changes of direction to be made only after the timer is finished working and thus after the snake moves one position forward
+    
+        private Image snakeHead;          //Images
+        private Image snakeBody;
+        private Image apple;
+        
+//Methods
+        -----
+        private void startGame(){          //This method initializes the game setup. Imports required: javax.swing.Timer
+            moveRight = true;          //Directions are set here and not in the variable declarations because we want directions to reset each time the user clicks "retry" and this method is called on, not just on the user's first try
+            moveLeft = false;
+            moveUp = false;
+            moveDown = false;
+            
+            snakeLength = 3;
+            userScore = snakeLength-3;
+            
+            lblScore.setVisible(true);          //sets up GUI
+            lblScore.setText("Score: "+userScore);
+                 //'For' loop initializes snake position
+            for (int z = 0; z < snakeLength; z++)          //Note that z has to be LESS THAN snakeLength. If equal to, the snake will be 4 long (1 head, 3 body parts). We want it to be 3 long
+               {x[z] = (30-(z*DOTSIZE));          //Head starts at x[30], first body part starts at x[30-10] (10 is size of each body part), second body part starts at x[30-20], etc.
+                y[z] = 250;}          //This sets the beginning position of the snake. NOTE!!: has to be numbers divisible by 10 in order to work with apple coordinates. If the apple can spawn at 38,46, but the snake can only reach 30,40 or 40,50 since it moves 10 pixels at a time, apple cannot be eaten
+            
+            spawnApple();          //Spawns first apple
+            
+            loadImages();          //loads in necessary images. This is done only at the start of each game
+            displayImages();          //Displays starting images
+            timer.start();}          //Starts movement loops and thus the entire game
+        
+        -----
+        private void endGame(){          //This method ends the game and displays the "Game over" screen. Imports required: javax.swing.Timer
+            timer.stop();          //Stops loop and thus the entire game
+            lblGameOver.setVisible(true);
+            btnPlayRetry.setText("Retry?");          //Sets the "Play" button to now say "Retry?", prompting the user to try again
+            btnPlayRetry.setVisible(true);}
+        
+        -----
+        private void loadImages(){          //This method loads the required images in from their file location on the computer. Imports required: java.awt.Image, javax.swing.ImageIcon
+            ImageIcon appleIcon = new ImageIcon(getClass().getResource("/Game Pics/food.png"));          //This finds the image in its file location and converts into an image icon
+            apple = appleIcon.getImage();          //This turns the image icon into the image variable. I don't fully understand why we have to go image icon and then image but stackoverflow says it works and it works
+            
+            ImageIcon headIcon = new ImageIcon(getClass().getResource("/Game Pics/head.png"));          //Note that the game images (snakehead/body, apple) are stored in a folder called Game Pics in the src folder of this project
+            snakeHead = headIcon.getImage();
+             
+            ImageIcon bodyIcon = new ImageIcon(getClass().getResource("/Game Pics/body.png"));
+            snakeBody = bodyIcon.getImage();}
+        
+        -----
+        private void displayImages(){          //This method displays the required images to the user on the GUI. Imports required: java.awt.Graphics
+            DRAW.drawImage(apple, appleX, appleY, this);          //Displays apple image
+            
+            for (int z = 0; z < snakeLength; z++)          //for loop calculates where to display images
+               {if (z == 0){DRAW.drawImage(snakeHead, x[z], y[z], this);}          //Displays first snake part, the head image
+                else {DRAW.drawImage(snakeBody, x[z], y[z], this);}}}          //Displays all other snake parts, the body images
+        
+        -----
+        private void move(){          //This method moves the snake forward. Imports required: java.awt.Graphics
+            DRAW.clearRect(0, 0, panelBoard.getWidth(), panelBoard.getHeight());           //This clears the board of past, unwanted images
+            for (int z = snakeLength-1; z > 0; z--)          //This code moves the snake's body parts forward to the body part ahead of them
+               {x[z] = x[(z-1)];          //For example, x[3] now equals x[3-1], or x[2]
+                y[z] = y[(z-1)];}
+            
+            //This code below moves the head of the snake. Note the use of "==" instead of "=" in the conditionals. One equal sign is an assignment, two is a conditional check
+            if (moveUp == true)       //Moves snake UP
+               {y[0] -= DOTSIZE;}           //Snake moves 10 pixels at a time, hence why we use DOTSIZE (10) and not 1
+            if (moveDown == true)     //Moves snake DOWN
+               {y[0] += DOTSIZE;}          //Y-axis opens from the top-down, meaning going down involves increasing the y-value, and going up involves decreasing the y-value
+            if (moveLeft == true)     //Moves snake LEFT
+               {x[0] -= DOTSIZE;}          //X-axis opens from left-right, meaning going right involves increasing the x-value, and going left involved decreasing the x-value
+            if (moveRight == true)    //Moves snake RIGHT
+               {x[0] += DOTSIZE;}}
+        
+        -----
+        private void checkCollision(){          //This method checks if the snake has collided with itself or the grid boundaries and ends the game if needed.
+            if (snakeLength > 4)          //Snake cannot hit itself if it has a length of <4
+               {for (int z = snakeLength; z > 3; z--)
+                   {if ((x[0] == x[z]) && (y[0] == y[z]))          //Loops through each snake bodypart and checks if the head has hit it
+                       {endGame();}}}
+            //Snake hitting boundaries
+            if ((x[0] > BOARD_X-DOTSIZE) || (x[0] < 0))          //"If snake head is greater than max x-value or less than min x-value, end game"
+               {endGame();}
+            
+            if ((y[0] > BOARD_Y-DOTSIZE) || (y[0] < 0))          //"If snake head is greater than max y-value or less than min y-value, end game"
+               {endGame();}}
+        
+        -----
+        private void checkApple(){          //This method checks if the apple has been eaten by the snake.
+            if ((x[0] == appleX) && (y[0] == appleY))          //"If head has hit apple..."
+                {snakeLength++;          //Increase snake's length by 1
+                 userScore = snakeLength - 3;          //Update userScore
+                 lblScore.setText("Score: "+userScore);          //Update userScore displayed on GUI
+                 spawnApple();}}          //Spawn a new apple
+        -----
+        private void spawnApple(){//This method spawns an apple.
+            appleX = ((int)(Math.random()*((BOARD_X-DOTSIZE)/DOTSIZE)))*DOTSIZE;          //Remember that the apple can only spawn on incremented coordinates divisible by 10, since the snake only moves 10 pixels at a time. In order to make the RNG pick at increments of 10... (continue on next line)
+            appleY = ((int)(Math.random()*((BOARD_Y-DOTSIZE)/DOTSIZE)))*DOTSIZE;}          //We subtract 10 (DOTSIZE) from board boundaries to avoid the apple spawning, for example, on 380,380 as this would display the apple outside of the grid. We then divide this number by 10 to get 37, forcing the RNG to pick between 0 and 37
+                //...we then convert the random number to an integer to get rid of decimals. Finally, we multiply this int by 10 to get a coordinate relatable to the GUI grid. The RNG picks between 0 and 37, the number is converted to an int to get rid of decimals then is multiplied by 10. If, for example, the RNG picks 24.667, this is converted to 25 (or 24... can't remember if ints round down in java), then multiplied by 10 to get 250 (or 240). This can now be used as a coordinate for the apple.
+        
+        -----
+        private final Timer timer = new Timer(DELAY_SPEED, new ActionListener(){          //This method runs the game's loops. Imports required: javax.swing.Timer, java.awt.event.ActionEvent, java.awt.event.ActionListener
+            public void actionPerformed(ActionEvent e){          //Listens for increments of [DELAYSPEED] milliseconds, calls on necessary methods at each increment
+                move();          //First, moves snake forward 1
+                displayImages();          //Second, displays all necessary images (updates snake's position)
+                checkCollision();          //Checks if snake has hit itself or a boundary
+                checkApple();          //Checks if apple has been eaten
+                actionDelay = true;}});          //Gives permission for user input to be read and for change of direction to be made if wished by user
+        
+        -----
+        private void formKeyPressed(java.awt.event.KeyEvent evt) {          //This method listens for user key inputs                         
+             if (actionDelay == true){//"IF the timer grants permission to make direction changes...
+                 int keyPressed = evt.getKeyCode();//...See which direction the user inputted
+                 actionDelay = false;
+                    //And make necessary directional changes:
+                    if (((keyPressed == 87)||(keyPressed == 38))&&(moveDown == false)){     //up. Note that for the snake to go up, it must not already be going down as this would force it to move backwards through itself, resulting in death
+                        moveUp = true;//--
+                        moveLeft = false;
+                        moveRight = false;}
+
+                    if (((keyPressed == 83)||(keyPressed == 40))&&(moveUp == false)){     //down
+                        moveDown = true;//--
+                        moveLeft = false;
+                        moveRight = false;}
+
+                    if (((keyPressed == 65)||(keyPressed == 37))&&(moveRight == false)){     //left
+                        moveUp = false;
+                        moveDown = false;
+                        moveLeft = true;}//--
+
+                    if (((keyPressed == 68)||(keyPressed == 39))&&(moveLeft == false)){     //right
+                        moveUp = false;
+                        moveDown = false;
+                        moveRight = true;}}//--                               
+
+        -----
+        private void btnPlayRetryMouseClicked(java.awt.event.MouseEvent evt) {          //This method clears the screen of all objects and prepares the game for starting                                          
+            lblGameOver.setVisible(false);
+            lblGameOver.setText("GAME OVER");
+            btnPlayRetry.setVisible(false);
+            lblInstructionsWASD.setVisible(false); lblInstructionsARROW.setVisible(false); lblInstructionsOR.setVisible(false); lblInstructionsWORD.setVisible(false);
+            startGame();}          //Calls on startGame method to restart the game
